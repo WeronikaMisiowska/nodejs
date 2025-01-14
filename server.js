@@ -1,13 +1,17 @@
-const mongoose = require("mongoose");
+const express = require("express");
+const connectDB = require("./db");
 
-const uri = "mongodb://misiowskaweronika:Zaq12wsX@cluster0-shard-00-00.mongodb.net:27017,cluster0-shard-00-01.mongodb.net:27017,cluster0-shard-00-02.mongodb.net:27017/db-contacts?ssl=true&replicaSet=atlas-9y35km-shard-0&authSource=admin&retryWrites=true&w=majority";
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-mongoose
-  .connect(uri)
-  .then(() => {
-    console.log("Database connection successful");
-  })
-  .catch((error) => {
-    console.error("Database connection error:", error.message);
-    process.exit(1);
-  });
+app.use(express.json());
+
+const contactsRouter = require("./routes/api/contacts");
+app.use("/api/contacts", contactsRouter);
+
+
+connectDB();
+
+app.listen(PORT, () => {
+  console.log(`Server running on port: ${PORT}`);
+});
