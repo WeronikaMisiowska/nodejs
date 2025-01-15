@@ -1,5 +1,17 @@
-const app = require('./app');
+const express = require("express");
+const connectDB = require("./db");
 
-app.listen(6000, () => {
-  console.log('Server running. Use our API on port: 6000');
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(express.json());
+
+const contactsRouter = require("./routes/api/contacts");
+app.use("/api/contacts", contactsRouter);
+
+
+connectDB();
+
+app.listen(PORT, () => {
+  console.log(`Server running on port: ${PORT}`);
 });
