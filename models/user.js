@@ -11,6 +11,9 @@ const userSchema = new Schema({
     required: [true, 'Email is required'],
     unique: true,
   },
+  username: {
+    type: String,
+  },
   subscription: {
     type: String,
     enum: ['starter', 'pro', 'business'],
@@ -22,6 +25,6 @@ const userSchema = new Schema({
   },
 });
 
-const User = mongoose.model('user', userSchema);
+const User = mongoose.model("user", userSchema);
 
 module.exports = User;

@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -10,7 +11,7 @@ const SECRET_KEY = process.env.JWT_SECRET;
 
 router.post('/signup', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, username } = req.body;
 
     const { error } = validateUser(req.body);
     if (error) {
@@ -26,16 +27,18 @@ router.post('/signup', async (req, res) => {
     const newUser = await User.create({
       email,
       password: hashedPassword,
+      username,
     });
 
     res.status(201).json({
       user: {
         email: newUser.email,
         subscription: newUser.subscription,
+        username: newUser.username,
       },
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: error.message || "Server error" });
   }
 });
 
