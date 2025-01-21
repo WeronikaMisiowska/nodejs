@@ -1,4 +1,5 @@
 const express = require('express');
+const auth = require("../../middlewares/auth");
 const Joi = require('joi');
 const Contact = require('../../models/contact');
 
@@ -13,6 +14,8 @@ const contactSchema = Joi.object({
 const favoriteSchema = Joi.object({
   favorite: Joi.boolean().required(),
 });
+
+router.use(auth);
 
 router.get('/', async (req, res, next) => {
   try {
