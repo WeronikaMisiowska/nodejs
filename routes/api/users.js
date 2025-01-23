@@ -5,9 +5,42 @@ const jwt = require('jsonwebtoken');
 const User = require('../../models/user');
 const auth = require('../../middlewares/auth');
 const { validateUser } = require('../../validation/userValidation');
+const gravatar = require('gravatar');
+const path = require('path');
+const fs = require('fs');
+const fsPromises = require('fs/promises');
+const Jimp = require('jimp');
+const upload = require('../../middlewares/upload');
 
 const router = express.Router();
 const SECRET_KEY = process.env.JWT_SECRET;
+
+router.patch('/avatars', auth, upload.single('avatar'), async (req, res) => {
+  try {
+
+    const { path: tempPath, originalname } = req.file;
+    const { _id } = req.user;
+
+    const tmpDir = path.join(__dirname, '../../tmp');
+    if (!fs.existsSync(tmpDir)) {
+      fs.mkdirSync(tmpDir);    }
+
+    const avatarName = `${_id}_${originalname}`;
+    const avatarPath = path.join(__dirname, '../../public/avatars', avatarName);
+    const image = await Jimp.read(tempPath);
+
+    await image.resize(250, 250).writeAsync(avatarPath);
+
+    await fsPromises.unlink(tempPath);
+
+    const avatarURL = `/avatars/${avatarName}`;
+    await User.findByIdAndUpdate(_id, { avatarURL });
+
+    res.status(200).json({ avatarURL });
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+});
 
 router.post('/signup', async (req, res) => {
   try {
@@ -24,10 +57,12 @@ router.post('/signup', async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const avatarURL = gravatar.url(email, { s: '250', d: 'retro' }, true);
     const newUser = await User.create({
       email,
       password: hashedPassword,
       username,
+      avatarURL,
     });
 
     res.status(201).json({
@@ -35,6 +70,7 @@ router.post('/signup', async (req, res) => {
         email: newUser.email,
         subscription: newUser.subscription,
         username: newUser.username,
+        avatarURL: newUser.avatarURL,
       },
     });
   } catch (error) {
