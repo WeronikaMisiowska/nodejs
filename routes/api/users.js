@@ -11,6 +11,8 @@ const fs = require('fs');
 const fsPromises = require('fs/promises');
 const Jimp = require('jimp');
 const upload = require('../../middlewares/upload');
+const { v4: uuidv4 } = require('uuid');
+const sendEmail = require('../../services/emailService');
 
 const router = express.Router();
 const SECRET_KEY = process.env.JWT_SECRET;
@@ -58,11 +60,22 @@ router.post('/signup', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const avatarURL = gravatar.url(email, { s: '250', d: 'retro' }, true);
+    const verificationToken = uuidv4();
     const newUser = await User.create({
       email,
       password: hashedPassword,
       username,
       avatarURL,
+      verificationToken,
+    });
+
+    const verificationLink = `${process.env.BASE_URL}/api/users/verify/${verificationToken}`;
+    
+     await sendEmail({
+      to: email,
+      subject: 'Email verification',
+      html: `<p>Click the link below to verify your email:</p>
+             <a href="${verificationLink}">${verificationLink}</a>`,
     });
 
     res.status(201).json({
@@ -79,6 +92,57 @@ router.post('/signup', async (req, res) => {
 });
 
 
+router.get('/verify/:verificationToken', async (req, res) => {
+  try {
+    const { verificationToken } = req.params;
+
+    const user = await User.findOne({ verificationToken });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.verificationToken = null;
+    user.verify = true;
+    await user.save();
+
+    res.status(200).json({ message: 'Verification successful' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+router.post('/verify', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: 'Missing required field email' });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.verify) {
+      return res.status(400).json({ message: 'Verification has already been passed' });
+    }
+
+    const verificationLink = `${process.env.BASE_URL}/api/users/verify/${user.verificationToken}`;
+    await sendEmail({
+      to: email,
+      subject: 'Email verification',
+      html: `<p>Click the link below to verify your email:</p>
+             <a href="${verificationLink}">${verificationLink}</a>`,
+    });
+
+    res.status(200).json({ message: 'Verification email sent' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -91,6 +155,10 @@ router.post('/login', async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ message: 'Email or password is wrong' });
+    }
+
+    if (!user.verify) {
+  return res.status(401).json({ message: 'Email is not verified' });
     }
 
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
